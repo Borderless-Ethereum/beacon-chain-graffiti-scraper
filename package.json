@@ -18,6 +18,7 @@
     "prettier": "^2.8.7"
   },
   "scripts": {
-    "test": "jest --runInBand --detectOpenHandles --forceExit"
+    "test": "jest --runInBand --detectOpenHandles --forceExit",
+    "prettify": "prettier -w ./*.js"
   }
 }
