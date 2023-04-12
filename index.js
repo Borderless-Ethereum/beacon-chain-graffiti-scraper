@@ -1,9 +1,12 @@
 const axios = require('axios')
 const express = require('express')
 const mongoose = require('mongoose')
+const sleep = require('util').promisify(setTimeout)
 
 const app = express()
 const port = 3000
+
+const APIKEY = process.env.API_KEY
 
 /**
  * Sets up connection to DB and returns the DB model for storing data for bacon chain slots
@@ -29,12 +32,12 @@ function getDbModel() {
     graffiti: String,
     proposer: Number,
     exec_fee_recipient: String,
+    exec_block_hash: String,
+    exec_block_number: Number
   })
 
   return mongoose.model('slots', slot)
 }
-
-const slots = getDbModel()
 
 /**
  * Fetches data for all the slots in a given epoch
@@ -42,14 +45,10 @@ const slots = getDbModel()
  * @param {Number} epoch The epoch to retrieve data for
  * @return Object array of slot objects to be stored in DB
  */
-async function getEpochSlots(epoch) {
-  const APIKEY = process.env.API_KEY
+async function getEpochSlots(epoch = 'finalized') {
+  console.log('\nretrieving data for', epoch)
 
-  const slug = epoch || 'latest'
-
-  console.log('\nretrieving data for', slug)
-
-  const url = `https://beaconcha.in/api/v1/epoch/${slug}/slots?apikey=${APIKEY}`
+  const url = `https://beaconcha.in/api/v1/epoch/${epoch}/slots?apikey=${APIKEY}`
 
   let res = {}
 
@@ -73,6 +72,8 @@ async function getEpochSlots(epoch) {
       graffiti: s.graffiti_text,
       exec_fee_recipient: s.exec_fee_recipient,
       proposer: s.proposer,
+      exec_block_hash: s.exec_block_hash,
+      exec_block_number: s.exec_block_number
     }))
 
   return graffiti
@@ -85,7 +86,7 @@ async function getEpochSlots(epoch) {
  * @return String the parsed slot data in CSV format
  */
 async function getSlotData(epoch) {
-  let csv = '"Epoch", "Slot", "Graffiti", "Proposer", "Fee Recipient"\n'
+  let csv = '"Epoch","Slot","Graffiti","Proposer","Fee Recipient,Exec Block Hash,Exec Block Number"\n'
 
   try {
     const query = epoch != undefined && !isNaN(epoch) ? { epoch } : {}
@@ -96,12 +97,16 @@ async function getSlotData(epoch) {
 
     csv += data
       .map(
-        (d) =>
-          `"${d.epoch}", "${d.slot_number}", "${d.graffiti.replace(/"/g, '"')}", "${
-            d.proposer
-          }", "${d.exec_fee_recipient}"`
-      )
-      .join('\n')
+        (slot) => ([
+          `"${slot.epoch}"`,
+          `"${slot.slot_number}"`,
+          `"${slot.graffiti.replace(/"/g, '"')}"`,
+          `"${slot.proposer}"`,
+          `"${slot.exec_fee_recipient}"`,
+          `"${slot.exec_block_hash}"`,
+          `"${slot.exec_block_number}"`
+        ]).join(',')
+      ).join('\n')
   } catch (err) {
     console.log(err)
   }
@@ -109,17 +114,103 @@ async function getSlotData(epoch) {
   return csv
 }
 
-app.get('/sync', async (req, res) => {
-  const graffiti = await getEpochSlots()
+const slots = getDbModel()
+
+async function getLastSynchedEpoch() {
+  const lastSyncedEpoch = slots.findOne({})
+    .sort({ epoch: 'desc' })
+    .exec()
+
+  return lastSyncedEpoch
+}
+
+async function getLatestFinalizedEpochNumber() {
+  const url = `https://beaconcha.in/api/v1/epoch/finalized?apikey=${APIKEY}`
+
+  let res = {}
+
+  try {
+    res = await axios.get(url)
+  } catch (e) {
+    console.error(e.code, url)
+  }
+
+  const data = res && res.data && res.data.data
+
+  return data.epoch
+}
+
+async function syncSlotsToDb(from, to, data = []) {
+  if (from > to) {
+    console.log('\n completed sync')
+
+    return data
+  }
+
+  const graffiti = await getEpochSlots(from)
+
+  data = [ ...data, ...graffiti ]
 
   try {
     slots.insertMany(graffiti)
-
-    res.send(graffiti)
   } catch (e) {
-    console.log(e)
-    res.send(e)
+    console.error(e)
   }
+
+  from = from == 'finalized' ? graffiti[0].epoch : from
+
+  from++
+
+  await sleep(1000)
+
+  return await syncSlotsToDb(from, to, data)
+}
+
+app.get('/sync', async (req, res) => {
+  let lastSyncedEpoch, latestFinalizedEpochNumber, results
+
+  const now = new Date().toUTCString()
+
+  console.log('\nsyncing DB at:', now)
+
+  // first get last known sync point from DB
+  try {
+    const lastSyncedSlot = await getLastSynchedEpoch()
+
+    lastSyncedEpoch = lastSyncedSlot ? lastSyncedSlot.epoch : 'finalized'
+
+    console.log('\nlast synced epoch', lastSyncedEpoch)
+  } catch(e) {
+    console.error('\nerror getting last known sync point from DB:', e.message)
+
+    res.send(e)
+
+    return
+  }
+
+  // then get the number of the last finalized epoch
+  try {
+    latestFinalizedEpochNumber = await getLatestFinalizedEpochNumber()
+  } catch(e) {
+    console.error('\nerror getting the number of the last finalized epoch:', e.message)
+
+    res.send(e)
+
+    return
+  }
+
+  // iterate over each epoch until the last finalized one
+  try {
+    results = await syncSlotsToDb(lastSyncedEpoch, latestFinalizedEpochNumber)
+  } catch(e) {
+    console.error('\nerror iterating over each epoch until the last finalized one:', e.message)
+
+    res.send(e)
+
+    return
+  }
+
+  res.send(results)
 })
 
 app.get('/slots', async (req, res) => {
