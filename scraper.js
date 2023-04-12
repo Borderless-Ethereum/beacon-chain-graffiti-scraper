@@ -5,14 +5,21 @@ const sleep = require('util').promisify(setTimeout)
 
 class Scraper {
   /**
-   * Creates a new Scraper instance with the given port number, initializes the Express app and MongoDB database, and sets up the endpoints.
+   * Creates a new Scraper instance with the given port number,
+   * initializes the Express app and MongoDB connection, and sets up the endpoints.
    *
    * @param {number} port - The port number to listen on.
+   * @param {string} apiKey - The API key for the beaconcha.in API
+   * @param {string} dbConnectionString - The connection string for connecting to the DB
+   * @param {string} apiBaseUrl - The base url for the beaconcha.in API
    */
-  constructor(port) {
+  constructor(port, apiKey, dbConnectionString, apiBaseUrl) {
     this.port = port
+    this.apiKey = apiKey
+    this.dbConnectionString = dbConnectionString
+    this.apiBaseUrl = apiBaseUrl
+
     this.app = express()
-    this.APIKEY = process.env.API_KEY
     this.slots = this.getDbModel(mongoose)
     this.setupEndpoints()
   }
@@ -21,12 +28,13 @@ class Scraper {
    * Starts the scraper app, connecting to the MongoDB database and listening for HTTP requests on the configured port.
    */
   async start() {
-    await mongoose.connect('mongodb://localhost:27017/slots', {
+    await mongoose.connect(this.dbConnectionString, {
       useUnifiedTopology: true,
       useNewUrlParser: true,
     })
+
     this.app.listen(this.port, () => {
-      console.log(`Scraper app listening on port ${this.port}`)
+      console.log(`Graffiti scraper listening on port ${this.port}`)
     })
   }
 
@@ -101,6 +109,7 @@ class Scraper {
   /**
    * Returns the MongoDB model for the "slots" collection.
    *
+   * @param {mongoose} dbinstance - The mongoose ORM isntance
    * @return {mongoose.Model} - The model for the "slots" collection.
    */
   getDbModel(dbinstance) {
@@ -128,13 +137,13 @@ class Scraper {
   /**
    * Retrieves slot data for the given epoch from the beaconcha.in API.
    *
-   * @param {string} epoch - The epoch to retrieve data for.
+   * @param {string} epoch - The epoch to retrieve data for, default is "finalized".
    * @return {Promise<Array>} - A Promise that resolves to an array of slot data objects.
    */
   async getEpochSlots(epoch = 'finalized') {
     console.log('\nretrieving data for', epoch)
 
-    const url = `https://beaconcha.in/api/v1/epoch/${epoch}/slots?apikey=${this.APIKEY}`
+    const url = `${this.apiBaseUrl}/${epoch}/slots?apikey=${this.apiKey}`
 
     let res = {}
 
@@ -219,7 +228,7 @@ class Scraper {
    * @return {Promise<number>} - A Promise that resolves to the epoch number of the latest finalized epoch.
    */
   async getLatestFinalizedEpochNumber() {
-    const url = `https://beaconcha.in/api/v1/epoch/finalized?apikey=${this.APIKEY}`
+    const url = `${this.apiBaseUrl}/finalized?apikey=${this.apiKey}`
 
     let res = {}
 
