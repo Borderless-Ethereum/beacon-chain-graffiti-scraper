@@ -8,11 +8,6 @@ const port = 3000
 
 const APIKEY = process.env.API_KEY
 
-/**
- * Sets up connection to DB and returns the DB model for storing data for bacon chain slots
- *
- * @return Object mongoose model for slot documents
- */
 function getDbModel() {
   const uri = 'mongodb://localhost:27017/slots'
 
@@ -39,12 +34,6 @@ function getDbModel() {
   return mongoose.model('slots', slot)
 }
 
-/**
- * Fetches data for all the slots in a given epoch
- *
- * @param {Number} epoch The epoch to retrieve data for
- * @return Object array of slot objects to be stored in DB
- */
 async function getEpochSlots(epoch = 'finalized') {
   console.log('\nretrieving data for', epoch)
 
