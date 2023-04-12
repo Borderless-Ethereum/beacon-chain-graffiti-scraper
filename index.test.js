@@ -10,7 +10,7 @@ describe('Graffiti Scraper', () => {
 
   beforeAll(async () => {
     mongoose.connect.mockReturnValue(Promise.resolve())
-    mongoose.connection = { once: (arg1, arg2) => ({}) }
+    mongoose.connection = { once: () => ({}) }
 
     scraper = new Scraper(3000)
 
@@ -36,11 +36,9 @@ describe('Graffiti Scraper', () => {
     const model = { model: jest.fn(() => collection) }
 
     mongoose.connect.mockReturnValue(Promise.resolve())
-    mongoose.connection = { once: (arg1, arg2) => ({}) }
+    mongoose.connection = { once: () => ({}) }
     mongoose.Schema.mockReturnValue({})
     mongoose.model.mockReturnValue(model)
-
-    const result = scraper.getDbModel(mongoose)
 
     expect(mongoose.connect).toHaveBeenCalledWith('mongodb://localhost:27017/slots', {
       useUnifiedTopology: true,
@@ -122,7 +120,7 @@ describe('Graffiti Scraper', () => {
     ]
 
     const find = () => {
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         resolve(data)
       })
     }
@@ -131,7 +129,7 @@ describe('Graffiti Scraper', () => {
     const model = { model: jest.fn(() => collection) }
 
     mongoose.connect.mockReturnValue(Promise.resolve())
-    mongoose.connection = { once: (arg1, arg2) => ({}) }
+    mongoose.connection = { once: () => ({}) }
     mongoose.Schema.mockReturnValue({})
     mongoose.model.mockReturnValue(model)
 
@@ -173,7 +171,7 @@ describe('Graffiti Scraper', () => {
 
     const find = (epoch) => {
       findCalled = epoch
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         resolve(data)
       })
     }
@@ -182,7 +180,7 @@ describe('Graffiti Scraper', () => {
     const model = { model: jest.fn(() => collection) }
 
     mongoose.connect.mockReturnValue(Promise.resolve())
-    mongoose.connection = { once: (arg1, arg2) => ({}) }
+    mongoose.connection = { once: () => ({}) }
     mongoose.Schema.mockReturnValue({})
     mongoose.model.mockReturnValue(model)
 
@@ -204,7 +202,7 @@ describe('Graffiti Scraper', () => {
     const data = { epoch: 1 }
 
     const findOne = jest.fn(() => ({
-      sort: (params) => ({
+      sort: () => ({
         exec: () => Promise.resolve(data),
       }),
     }))
@@ -213,7 +211,7 @@ describe('Graffiti Scraper', () => {
     const model = { model: jest.fn(() => collection) }
 
     mongoose.connect.mockReturnValue(Promise.resolve())
-    mongoose.connection = { once: (arg1, arg2) => ({}) }
+    mongoose.connection = { once: () => ({}) }
     mongoose.Schema.mockReturnValue({})
     mongoose.model.mockReturnValue(model)
 
@@ -337,7 +335,7 @@ describe('Graffiti Scraper', () => {
     axios.get.mockResolvedValueOnce({ data: { data: data2 } })
 
     mongoose.connect.mockReturnValue(Promise.resolve())
-    mongoose.connection = { once: (arg1, arg2) => ({}) }
+    mongoose.connection = { once: () => ({}) }
     mongoose.Schema.mockReturnValue({})
     mongoose.model.mockReturnValue(model)
 
