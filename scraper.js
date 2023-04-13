@@ -57,7 +57,8 @@ class Scraper {
 
         console.log('\nlast synced epoch', lastSyncedEpoch)
       } catch (e) {
-        console.error('\nerror getting last known sync point from DB:', e.message)
+        console.error('\nerror getting last known sync point from DB:', e.message, '\n')
+        console.error(e)
 
         res.send(e)
 
@@ -67,8 +68,13 @@ class Scraper {
       // then get the number of the last finalized epoch
       try {
         latestFinalizedEpochNumber = await this.getLatestFinalizedEpochNumber()
+
+        if (!latestFinalizedEpochNumber) {
+          throw new Error('Unable to retrieve latest finalized epoch from DB')
+        }
       } catch (e) {
-        console.error('\nerror getting the number of the last finalized epoch:', e.message)
+        console.error('\nerror getting the number of the last finalized epoch:', e.message, '\n')
+        console.error(e)
 
         res.send(e)
 
@@ -79,14 +85,15 @@ class Scraper {
       try {
         results = await this.syncSlotsToDb(lastSyncedEpoch, latestFinalizedEpochNumber)
       } catch (e) {
-        console.error('\nerror iterating over each epoch until the last finalized one:', e.message)
+        console.error('\nerror iterating over each epoch until the last finalized one:', e.message, '\n')
+        console.error(e)
 
         res.send(e)
 
         return
       }
 
-      res.send(results)
+      res.send({ status: 'OK', slots_synced: results.length })
     })
 
     this.app.get('/slots', async (req, res) => {
@@ -157,7 +164,7 @@ class Scraper {
 
     data = res && res.data && res.data.data
 
-    console.log('retrieved data for', data[0].epoch)
+    console.log('retrieved data for', data && data[0].epoch)
 
     const graffiti = data
       .filter((s) => s.graffiti_text.length)
@@ -240,7 +247,7 @@ class Scraper {
 
     const data = res && res.data && res.data.data
 
-    return data.epoch
+    return data ? data.epoch : 0
   }
 
   /**
