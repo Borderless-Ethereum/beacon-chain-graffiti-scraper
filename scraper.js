@@ -83,9 +83,13 @@ class Scraper {
 
       // iterate over each epoch until the last finalized one
       try {
-        results = await this.syncSlotsToDb(lastSyncedEpoch, latestFinalizedEpochNumber)
+        results = await this.syncSlotsToDb(lastSyncedEpoch + 1, latestFinalizedEpochNumber)
       } catch (e) {
-        console.error('\nerror iterating over each epoch until the last finalized one:', e.message, '\n')
+        console.error(
+          '\nerror iterating over each epoch until the last finalized one:',
+          e.message,
+          '\n'
+        )
         console.error(e)
 
         res.send(e)
@@ -93,7 +97,7 @@ class Scraper {
         return
       }
 
-      res.send({ status: 'OK', slots_synced: results.length })
+      res.send({ epoch: latestFinalizedEpochNumber, status: 'OK', slots_synced: results.length })
     })
 
     this.app.get('/slots', async (req, res) => {
@@ -189,7 +193,7 @@ class Scraper {
    */
   async getSlotData(epoch) {
     let csv =
-      '"Epoch","Slot","Graffiti","Proposer","Fee Recipient,Exec Block Hash,Exec Block Number"\n'
+      '"Epoch","Slot","Graffiti","Proposer","Fee Recipient","Exec Block Hash","Exec Block Number"\n'
 
     try {
       const query = epoch != undefined && !isNaN(epoch) ? { epoch } : {}
