@@ -97,6 +97,8 @@ class Scraper {
         return
       }
 
+      res.set('Content-Type', 'application/json')
+
       res.send({ epoch: latestFinalizedEpochNumber, status: 'OK', slots_synced: results.length })
     })
 
@@ -114,6 +116,14 @@ class Scraper {
       res.set('Content-Type', 'text/csv')
 
       res.send(slotdata)
+    })
+
+    this.app.get('/status', async (req, res) => {
+      const status = await this.getStatus()
+
+      res.set('Content-Type', 'application/json')
+
+      res.send(status)
     })
   }
 
@@ -140,6 +150,7 @@ class Scraper {
       exec_fee_recipient: String,
       exec_block_hash: String,
       exec_block_number: Number,
+      exec_timestamp: Number,
     })
 
     return mongoose.model('slots', slot)
@@ -171,7 +182,7 @@ class Scraper {
     console.log('retrieved data for', data && data[0].epoch)
 
     const graffiti = data
-      .filter((s) => s.graffiti_text.length)
+      // .filter((s) => s.graffiti_text.length)
       .map((s) => ({
         epoch: s.epoch,
         slot_number: s.slot,
@@ -180,9 +191,29 @@ class Scraper {
         proposer: s.proposer,
         exec_block_hash: s.exec_block_hash,
         exec_block_number: s.exec_block_number,
+        exec_timestamp: s.exec_timestamp,
       }))
 
     return graffiti
+  }
+
+  async getStatus() {
+    let data = {}
+
+    try {
+      const lastSyncedSlot = await this.slots.findOne({}).sort({ epoch: 'desc' }).exec()
+      const numberSlots = await this.slots.count({})
+
+      data = {
+        epoch: lastSyncedSlot.epoch,
+        slot: lastSyncedSlot.slot_number,
+        numberSlots,
+      }
+    } catch (err) {
+      console.error(err)
+    }
+
+    return data
   }
 
   /**
@@ -193,7 +224,7 @@ class Scraper {
    */
   async getSlotData(epoch) {
     let csv =
-      '"Epoch","Slot","Graffiti","Proposer","Fee Recipient","Exec Block Hash","Exec Block Number"\n'
+      '"Epoch","Slot","Graffiti","Proposer","Fee Recipient","Exec Block Hash","Exec Block Number","Exec Block Timestamp"\n'
 
     try {
       const query = epoch != undefined && !isNaN(epoch) ? { epoch } : {}
@@ -212,6 +243,7 @@ class Scraper {
             `"${slot.exec_fee_recipient}"`,
             `"${slot.exec_block_hash}"`,
             `"${slot.exec_block_number}"`,
+            `"${slot.exec_timestamp}"`,
           ].join(',')
         )
         .join('\n')

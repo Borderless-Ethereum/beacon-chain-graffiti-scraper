@@ -12,7 +12,12 @@ describe('Graffiti Scraper', () => {
     mongoose.connect.mockReturnValue(Promise.resolve())
     mongoose.connection = { once: () => ({}) }
 
-    scraper = new Scraper(3000)
+    scraper = new Scraper(
+      3000,
+      'abcdef12345',
+      'mongodb://mongo:27017/slots',
+      'https://beaconcha.in/api/v1/epoch'
+    )
 
     await scraper.start()
   })
@@ -40,7 +45,7 @@ describe('Graffiti Scraper', () => {
     mongoose.Schema.mockReturnValue({})
     mongoose.model.mockReturnValue(model)
 
-    expect(mongoose.connect).toHaveBeenCalledWith('mongodb://localhost:27017/slots', {
+    expect(mongoose.connect).toHaveBeenCalledWith('mongodb://mongo:27017/slots', {
       useUnifiedTopology: true,
       useNewUrlParser: true,
     })
@@ -78,7 +83,7 @@ describe('Graffiti Scraper', () => {
 
     const result = await scraper.getEpochSlots(epoch)
 
-    expect(result).toHaveLength(1)
+    expect(result).toHaveLength(2)
     expect(result[0]).toHaveProperty('epoch', epoch)
     expect(result[0]).toHaveProperty('slot_number', 1)
     expect(result[0]).toHaveProperty('graffiti', 'foo')
@@ -137,9 +142,10 @@ describe('Graffiti Scraper', () => {
 
     const result = await scraper.getSlotData()
 
-    expect(result).toMatch(
-      /^"Epoch","Slot","Graffiti","Proposer","Fee Recipient,Exec Block Hash,Exec Block Number"\n/
+    expect(result).toContain(
+      '"Epoch","Slot","Graffiti","Proposer","Fee Recipient","Exec Block Hash","Exec Block Number","Exec Block Timestamp"\n'
     )
+
     expect(result).toContain('"1","1","foo","0","bar","","0"')
     expect(result).toContain('"1","2","","1","","","0"')
     expect(result).toContain('"2","1","baz","2","qux","","0"')
@@ -191,7 +197,7 @@ describe('Graffiti Scraper', () => {
     const result = await scraper.getSlotData(epoch)
 
     expect(result).toMatch(
-      /^"Epoch","Slot","Graffiti","Proposer","Fee Recipient,Exec Block Hash,Exec Block Number"\n/
+      /^"Epoch","Slot","Graffiti","Proposer","Fee Recipient","Exec Block Hash","Exec Block Number","Exec Block Timestamp"\n/
     )
     expect(result).toContain('"1","1","foo","0","bar","","0"')
     expect(result).toContain('"1","2","","1","","","0"')
@@ -232,7 +238,7 @@ describe('Graffiti Scraper', () => {
 
     expect(result).toBe(data.data.data.epoch)
     expect(axios.get).toHaveBeenCalledWith(
-      `https://beaconcha.in/api/v1/epoch/finalized?apikey=${process.env.API_KEY}`
+      `https://beaconcha.in/api/v1/epoch/finalized?apikey=abcdef12345`
     )
   })
 
@@ -249,6 +255,7 @@ describe('Graffiti Scraper', () => {
         exec_fee_recipient: 'bar',
         exec_block_hash: '',
         exec_block_number: 0,
+        exec_timestamp: 12345678,
       },
       {
         epoch: 1,
@@ -258,6 +265,7 @@ describe('Graffiti Scraper', () => {
         exec_fee_recipient: '',
         exec_block_hash: '',
         exec_block_number: 0,
+        exec_timestamp: 12345678,
       },
     ]
 
@@ -270,6 +278,7 @@ describe('Graffiti Scraper', () => {
         exec_fee_recipient: 'qux',
         exec_block_hash: '',
         exec_block_number: 0,
+        exec_timestamp: 12345678,
       },
       {
         epoch: 2,
@@ -279,6 +288,7 @@ describe('Graffiti Scraper', () => {
         exec_fee_recipient: 'corge',
         exec_block_hash: '',
         exec_block_number: 0,
+        exec_timestamp: 12345678,
       },
     ]
 
@@ -291,6 +301,7 @@ describe('Graffiti Scraper', () => {
         exec_fee_recipient: 'bar',
         exec_block_hash: '',
         exec_block_number: 0,
+        exec_timestamp: 12345678,
       },
       {
         epoch: 1,
@@ -300,6 +311,7 @@ describe('Graffiti Scraper', () => {
         exec_fee_recipient: '',
         exec_block_hash: '',
         exec_block_number: 0,
+        exec_timestamp: 12345678,
       },
     ]
 
@@ -312,6 +324,7 @@ describe('Graffiti Scraper', () => {
         exec_fee_recipient: 'qux',
         exec_block_hash: '',
         exec_block_number: 0,
+        exec_timestamp: 12345678,
       },
       {
         epoch: 2,
@@ -321,6 +334,7 @@ describe('Graffiti Scraper', () => {
         exec_fee_recipient: 'corge',
         exec_block_hash: '',
         exec_block_number: 0,
+        exec_timestamp: 12345678,
       },
     ]
 
@@ -341,8 +355,8 @@ describe('Graffiti Scraper', () => {
 
     const result = await scraper.syncSlotsToDb(from, to)
 
-    expect(result).toHaveLength(3)
-    expect(result).toEqual([graffiti1[0], ...graffiti2])
+    expect(result).toHaveLength(4)
+    expect(result).toEqual([...graffiti1, ...graffiti2])
     // expect(insertMany).toHaveBeenCalledTimes(2)
   })
 })
