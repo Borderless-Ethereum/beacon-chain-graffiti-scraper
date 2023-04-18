@@ -83,7 +83,9 @@ class Scraper {
 
       // iterate over each epoch until the last finalized one
       try {
-        results = await this.syncSlotsToDb(lastSyncedEpoch + 1, latestFinalizedEpochNumber)
+        lastSyncedEpoch = lastSyncedEpoch == 'finalized' ? lastSyncedEpoch : lastSyncedEpoch + 1
+
+        results = await this.syncSlotsToDb(lastSyncedEpoch, latestFinalizedEpochNumber)
       } catch (e) {
         console.error(
           '\nerror iterating over each epoch until the last finalized one:',
