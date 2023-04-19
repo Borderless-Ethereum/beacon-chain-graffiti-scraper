@@ -1,6 +1,7 @@
 node_modules/
 coverage/
 data/
+inventory.ini
 .env
 setup.sh
 *.swp
