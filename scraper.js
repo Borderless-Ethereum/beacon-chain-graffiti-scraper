@@ -224,16 +224,17 @@ class Scraper {
    * @param {string|number} epoch - The epoch to retrieve data for, or undefined to retrieve data for all epochs.
    * @return {Promise<string>} - A Promise that resolves to the slot data in CSV format.
    */
-  async getSlotData(epoch) {
+  async getSlotData(epochNumber) {
     let csv =
       '"Epoch","Slot","Graffiti","Proposer","Fee Recipient","Exec Block Hash","Exec Block Number","Exec Block Timestamp"\n'
 
     try {
-      const query = epoch != undefined && !isNaN(epoch) ? { epoch } : {}
+      const query =
+        epochNumber != undefined && !isNaN(epochNumber) ? { epoch: { $gte: epochNumber } } : {}
 
       const data = await this.slots.find(query)
 
-      console.log('\nexporting data, epoch: ', epoch)
+      console.log('\nexporting data, epoch: ', epochNumber)
 
       csv += data
         .map((slot) =>

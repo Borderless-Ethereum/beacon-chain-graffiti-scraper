@@ -201,7 +201,7 @@ describe('Graffiti Scraper', () => {
     )
     expect(result).toContain('"1","1","foo","0","bar","","0"')
     expect(result).toContain('"1","2","","1","","","0"')
-    expect(findCalled.epoch).toBe(epoch)
+    expect(findCalled.epoch).toEqual({ $gte: 1 })
   })
 
   test('should return the epoch number of the last synced slot', async () => {
